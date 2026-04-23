@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  password       String
+  avatarUrl      String?
+  anthropicApiKey String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  projects       Project[]
+  collaborations ProjectCollaborator[]
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  archived      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  workflows     Workflow[]
+  collaborators ProjectCollaborator[]
+}
+
+model ProjectCollaborator {
+  id        String   @id @default(cuid())
+  role      String   @default("viewer")
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  canvasData  Json     @default("{\"nodes\":[],\"edges\":[]}")
+  isTemplate  Boolean  @default(false)
+  shareToken  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  nodeMetadata NodeMetadata[]
+}
+
+model NodeMetadata {
+  id           String   @id @default(cuid())
+  nodeId       String
+  name         String
+  description  String?
+  notes        String?
+  links        Json     @default("[]")
+  costEstimate String?
+  apiEndpoint  String?
+  status       String   @default("active")
+  customFields Json     @default("{}")
+
+  workflowId   String
+  workflow     Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, nodeId])
+}
+
+model SoftwareCatalog {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  category     String
+  description  String?
+  defaultColor String   @default("#6366f1")
+}
