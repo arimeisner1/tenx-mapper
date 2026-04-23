@@ -1,24 +1,21 @@
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
 import { UseTemplateButton } from "@/components/canvas/use-template-button";
 
 export default async function TemplatesPage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/auth/login");
-  }
+  const user = await getDefaultUser();
 
   const templates = await prisma.workflow.findMany({
     where: {
       isTemplate: true,
       project: {
         OR: [
-          { ownerId: session.user.id },
-          { collaborators: { some: { userId: session.user.id } } },
+          { ownerId: user.id },
+          { collaborators: { some: { userId: user.id } } },
         ],
       },
     },
@@ -40,11 +37,11 @@ export default async function TemplatesPage() {
   const projects = await prisma.project.findMany({
     where: {
       OR: [
-        { ownerId: session.user.id },
+        { ownerId: user.id },
         {
           collaborators: {
             some: {
-              userId: session.user.id,
+              userId: user.id,
               role: { in: ["owner", "editor"] },
             },
           },
@@ -84,9 +81,9 @@ export default async function TemplatesPage() {
           </div>
           <UserMenu
             user={{
-              name: session.user.name,
-              email: session.user.email,
-              image: session.user.image,
+              name: user.name,
+              email: user.email,
+              image: user.avatarUrl,
             }}
           />
         </div>

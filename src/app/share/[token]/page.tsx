@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { ShareCanvas } from "./share-canvas";
 
+export const dynamic = "force-dynamic";
+
 interface SharePageProps {
   params: Promise<{ token: string }>;
 }

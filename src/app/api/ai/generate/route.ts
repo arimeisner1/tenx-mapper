@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
 import { buildWorkflowContext, getTaskSystemPrompt } from "@/lib/ai";
 
@@ -14,10 +14,7 @@ const VALID_TASKS = [
 type TaskType = (typeof VALID_TASKS)[number];
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const body = await request.json();
   const { workflowId, apiKey, task } = body;
@@ -41,11 +38,11 @@ export async function POST(request: NextRequest) {
   // Use provided API key or fetch from user settings
   let resolvedApiKey = apiKey;
   if (!resolvedApiKey) {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       select: { anthropicApiKey: true },
     });
-    resolvedApiKey = user?.anthropicApiKey;
+    resolvedApiKey = dbUser?.anthropicApiKey;
   }
 
   if (!resolvedApiKey) {
@@ -61,8 +58,8 @@ export async function POST(request: NextRequest) {
       id: workflowId,
       project: {
         OR: [
-          { ownerId: session.user.id },
-          { collaborators: { some: { userId: session.user.id } } },
+          { ownerId: user.id },
+          { collaborators: { some: { userId: user.id } } },
         ],
       },
     },

@@ -1,18 +1,15 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const projects = await prisma.project.findMany({
     where: {
       OR: [
-        { ownerId: session.user.id },
-        { collaborators: { some: { userId: session.user.id } } },
+        { ownerId: user.id },
+        { collaborators: { some: { userId: user.id } } },
       ],
     },
     include: {
@@ -30,10 +27,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const body = await request.json();
   const { name, description } = body;
@@ -46,10 +40,10 @@ export async function POST(request: NextRequest) {
     data: {
       name,
       description: description || null,
-      ownerId: session.user.id,
+      ownerId: user.id,
       collaborators: {
         create: {
-          userId: session.user.id,
+          userId: user.id,
           role: "owner",
         },
       },

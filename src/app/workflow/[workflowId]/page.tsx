@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 import { WorkflowCanvas } from "@/components/canvas/workflow-canvas";
 
 interface WorkflowPageProps {
@@ -8,10 +10,7 @@ interface WorkflowPageProps {
 }
 
 export default async function WorkflowPage({ params }: WorkflowPageProps) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    notFound();
-  }
+  const user = await getDefaultUser();
 
   const { workflowId } = await params;
 
@@ -20,8 +19,8 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
       id: workflowId,
       project: {
         OR: [
-          { ownerId: session.user.id },
-          { collaborators: { some: { userId: session.user.id } } },
+          { ownerId: user.id },
+          { collaborators: { some: { userId: user.id } } },
         ],
       },
     },

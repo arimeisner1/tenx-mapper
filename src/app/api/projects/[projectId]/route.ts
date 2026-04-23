@@ -1,15 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const { projectId } = await params;
 
@@ -17,8 +14,8 @@ export async function GET(
     where: {
       id: projectId,
       OR: [
-        { ownerId: session.user.id },
-        { collaborators: { some: { userId: session.user.id } } },
+        { ownerId: user.id },
+        { collaborators: { some: { userId: user.id } } },
       ],
     },
     include: {
@@ -49,17 +46,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const { projectId } = await params;
 
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      ownerId: session.user.id,
+      ownerId: user.id,
     },
   });
 
@@ -86,17 +80,14 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const { projectId } = await params;
 
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      ownerId: session.user.id,
+      ownerId: user.id,
     },
   });
 

@@ -1,7 +1,9 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -59,10 +61,7 @@ function getInitials(name: string | null, email: string): string {
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  const user = await getDefaultUser();
 
   const { projectId } = await params;
 
@@ -70,8 +69,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     where: {
       id: projectId,
       OR: [
-        { ownerId: session.user.id },
-        { collaborators: { some: { userId: session.user.id } } },
+        { ownerId: user.id },
+        { collaborators: { some: { userId: user.id } } },
       ],
     },
     include: {
@@ -97,7 +96,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound();
   }
 
-  const isOwner = project.ownerId === session.user.id;
+  const isOwner = project.ownerId === user.id;
 
   return (
     <div className="min-h-screen bg-background">

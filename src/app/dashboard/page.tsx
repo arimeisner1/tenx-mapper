@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
+import { getDefaultUser } from "@/lib/default-user";
 import Link from "next/link";
-import { UserMenu } from "@/components/layout/user-menu";
 import { CreateProjectDialog } from "@/components/layout/create-project-dialog";
+
+export const dynamic = "force-dynamic";
 
 interface ProjectWithCount {
   id: string;
@@ -34,17 +34,13 @@ function timeAgo(date: Date): string {
 }
 
 export default async function DashboardPage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/auth/login");
-  }
+  const user = await getDefaultUser();
 
   const projects = await prisma.project.findMany({
     where: {
       OR: [
-        { ownerId: session.user.id },
-        { collaborators: { some: { userId: session.user.id } } },
+        { ownerId: user.id },
+        { collaborators: { some: { userId: user.id } } },
       ],
     },
     include: {
@@ -63,13 +59,14 @@ export default async function DashboardPage() {
           <Link href="/dashboard" className="text-xl font-bold text-foreground">
             TenX Mapper
           </Link>
-          <UserMenu
-            user={{
-              name: session.user.name,
-              email: session.user.email,
-              image: session.user.image,
-            }}
-          />
+          <div className="flex items-center gap-4">
+            <Link
+              href="/templates"
+              className="text-sm text-muted-foreground hover:text-foreground transition"
+            >
+              Templates
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -126,19 +123,6 @@ export default async function DashboardPage() {
                   <h3 className="text-base font-semibold text-card-foreground group-hover:text-primary">
                     {project.name}
                   </h3>
-                  <svg
-                    className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
                 </div>
 
                 {project.description && (
@@ -148,20 +132,7 @@ export default async function DashboardPage() {
                 )}
 
                 <div className="mt-auto flex items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
-                      />
-                    </svg>
+                  <span>
                     {project._count.workflows} workflow{project._count.workflows !== 1 ? "s" : ""}
                   </span>
                   <span className="ml-auto">

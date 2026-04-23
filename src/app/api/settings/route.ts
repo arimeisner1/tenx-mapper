@@ -1,26 +1,23 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
     select: { anthropicApiKey: true },
   });
 
-  if (!user) {
+  if (!dbUser) {
     return Response.json({ error: "User not found" }, { status: 404 });
   }
 
   // Mask the API key for display: show first 7 and last 4 characters
   let maskedKey: string | null = null;
-  if (user.anthropicApiKey) {
-    const key = user.anthropicApiKey;
+  if (dbUser.anthropicApiKey) {
+    const key = dbUser.anthropicApiKey;
     if (key.length > 12) {
       maskedKey = `${key.slice(0, 7)}${"*".repeat(key.length - 11)}${key.slice(-4)}`;
     } else {
@@ -30,15 +27,12 @@ export async function GET() {
 
   return Response.json({
     anthropicApiKey: maskedKey,
-    hasApiKey: !!user.anthropicApiKey,
+    hasApiKey: !!dbUser.anthropicApiKey,
   });
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const body = await request.json();
   const { anthropicApiKey } = body;
@@ -58,7 +52,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: user.id },
     data: {
       anthropicApiKey: anthropicApiKey || null,
     },

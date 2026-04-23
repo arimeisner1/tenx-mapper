@@ -1,15 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ workflowId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const { workflowId } = await params;
 
@@ -18,8 +15,8 @@ export async function PUT(
       id: workflowId,
       project: {
         OR: [
-          { ownerId: session.user.id },
-          { collaborators: { some: { userId: session.user.id } } },
+          { ownerId: user.id },
+          { collaborators: { some: { userId: user.id } } },
         ],
       },
     },
@@ -87,10 +84,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ workflowId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const { workflowId } = await params;
 
@@ -99,8 +93,8 @@ export async function DELETE(
       id: workflowId,
       project: {
         OR: [
-          { ownerId: session.user.id },
-          { collaborators: { some: { userId: session.user.id } } },
+          { ownerId: user.id },
+          { collaborators: { some: { userId: user.id } } },
         ],
       },
     },

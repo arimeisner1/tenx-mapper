@@ -1,13 +1,10 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getDefaultUser } from "@/lib/default-user";
 import { nanoid } from "nanoid";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const user = await getDefaultUser();
 
   const body = await request.json();
   const { projectId, name, description } = body;
@@ -23,8 +20,8 @@ export async function POST(request: NextRequest) {
     where: {
       id: projectId,
       OR: [
-        { ownerId: session.user.id },
-        { collaborators: { some: { userId: session.user.id } } },
+        { ownerId: user.id },
+        { collaborators: { some: { userId: user.id } } },
       ],
     },
   });
