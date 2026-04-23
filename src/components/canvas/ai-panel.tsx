@@ -499,7 +499,7 @@ export function AiPanel({ workflowId, isOpen, onClose }: AiPanelProps) {
                 <button
                   key={action.id}
                   onClick={() => handleQuickAction(action)}
-                  disabled={isStreaming || !hasApiKey}
+                  disabled={isStreaming}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors text-left",
                     "bg-neutral-50 dark:bg-neutral-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-400",
@@ -532,7 +532,7 @@ export function AiPanel({ workflowId, isOpen, onClose }: AiPanelProps) {
               }}
               placeholder="e.g., How should I handle authentication between these services?"
               className="min-h-[60px] text-xs resize-none"
-              disabled={isStreaming || !hasApiKey}
+              disabled={isStreaming}
             />
             <Button
               size="sm"
@@ -628,9 +628,9 @@ export function AiPanel({ workflowId, isOpen, onClose }: AiPanelProps) {
 
       {/* Footer */}
       {!hasApiKey && (
-        <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-700 bg-amber-50 dark:bg-amber-900/20">
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            Enter your Anthropic API key above to use AI features. Your key is stored securely and only used to make requests to the Claude API.
+        <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-700 bg-violet-50 dark:bg-violet-900/20">
+          <p className="text-xs text-violet-700 dark:text-violet-400">
+            Running in demo mode. Add your Anthropic API key above for full AI-powered analysis.
           </p>
         </div>
       )}

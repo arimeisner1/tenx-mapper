@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getDefaultUser } from "@/lib/default-user";
 import Link from "next/link";
 import { CreateProjectDialog } from "@/components/layout/create-project-dialog";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -60,12 +61,25 @@ export default async function DashboardPage() {
             TenX Mapper
           </Link>
           <div className="flex items-center gap-4">
+            <div
+              className="hidden sm:inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground cursor-pointer hover:bg-muted hover:text-foreground transition-colors"
+              aria-label="Press Ctrl+K to search"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              Search...
+              <kbd className="ml-1 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium font-mono">
+                Ctrl K
+              </kbd>
+            </div>
             <Link
               href="/templates"
               className="text-sm text-muted-foreground hover:text-foreground transition"
             >
               Templates
             </Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>

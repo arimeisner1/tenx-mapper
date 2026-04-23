@@ -7,6 +7,7 @@ import {
   useMemo,
   useEffect,
   type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
   ReactFlow,
@@ -23,6 +24,7 @@ import {
   type Node,
   type Edge,
   type NodeTypes,
+  type EdgeTypes,
   BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -36,6 +38,11 @@ import {
   Image as ImageIcon,
   FileText,
   Sparkles,
+  Plus,
+  Layers,
+  Puzzle,
+  BookmarkPlus,
+  MousePointerClick,
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
@@ -43,11 +50,19 @@ import { SoftwareNode } from "./software-node";
 import { CustomNode } from "./custom-node";
 import { FunctionNode } from "./function-node";
 import { GroupNode } from "./group-node";
+import { StickyNoteNode } from "./sticky-note-node";
+import { EditableEdge } from "./editable-edge";
 import { SoftwareLibrary } from "./software-library";
 import { DetailPanel } from "./detail-panel";
 import { AiPanel } from "./ai-panel";
+import { CanvasToolbar } from "./canvas-toolbar";
+import { WorkflowStats } from "./workflow-stats";
+import { ShortcutsDialog } from "@/components/layout/shortcuts-dialog";
+import { getLayoutedElements } from "@/lib/auto-layout";
+import { cn } from "@/lib/utils";
 
 interface NodeMetadataEntry {
+  [key: string]: unknown;
   id?: string;
   nodeId: string;
   name: string;
@@ -85,11 +100,21 @@ interface WorkflowCanvasProps {
   catalog: CatalogEntry[];
 }
 
+const COLOR_OPTIONS = [
+  "#ef4444", "#f97316", "#eab308", "#22c55e",
+  "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899",
+];
+
 const nodeTypes: NodeTypes = {
   softwareNode: SoftwareNode,
   customNode: CustomNode,
   functionNode: FunctionNode,
   groupNode: GroupNode,
+  stickyNote: StickyNoteNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  editableEdge: EditableEdge,
 };
 
 function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
@@ -114,6 +139,10 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [showInlineCustom, setShowInlineCustom] = useState(false);
+  const [inlineCustomName, setInlineCustomName] = useState("");
+  const [inlineCustomColor, setInlineCustomColor] = useState("#8b5cf6");
   const [metadataMap, setMetadataMap] = useState<Record<string, NodeMetadataEntry>>(() => {
     const map: Record<string, NodeMetadataEntry> = {};
     for (const m of workflow.nodeMetadata) {
@@ -121,6 +150,26 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
     }
     return map;
   });
+
+  // Undo history
+  const historyRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
+  const historyIndexRef = useRef(-1);
+
+  const pushHistory = useCallback((n: Node[], e: Edge[]) => {
+    const history = historyRef.current;
+    const idx = historyIndexRef.current;
+    // Trim future history if we branched
+    historyRef.current = history.slice(0, idx + 1);
+    historyRef.current.push({ nodes: JSON.parse(JSON.stringify(n)), edges: JSON.parse(JSON.stringify(e)) });
+    if (historyRef.current.length > 50) historyRef.current.shift();
+    historyIndexRef.current = historyRef.current.length - 1;
+  }, []);
+
+  // Push initial state
+  useEffect(() => {
+    pushHistory(initialNodes, initialEdges);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -156,18 +205,21 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      setEdges((eds) =>
-        addEdge(
+      setEdges((eds) => {
+        const newEdges = addEdge(
           {
             ...connection,
+            type: "editableEdge",
+            data: { label: "" },
             style: { stroke: "#94a3b8", strokeWidth: 2 },
-            type: "smoothstep",
           },
           eds
-        )
-      );
+        );
+        pushHistory(nodes, newEdges);
+        return newEdges;
+      });
     },
-    [setEdges]
+    [setEdges, nodes, pushHistory]
   );
 
   // Drag and drop from library
@@ -205,9 +257,13 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
         newNode.style = { width: 300, height: 200 };
       }
 
-      setNodes((nds) => [...nds, newNode]);
+      setNodes((nds) => {
+        const updated = [...nds, newNode];
+        pushHistory(updated, edges);
+        return updated;
+      });
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, edges, pushHistory]
   );
 
   // Node selection
@@ -218,15 +274,22 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setExportOpen(false);
+    setQuickAddOpen(false);
+    setShowInlineCustom(false);
   }, []);
 
   // Delete node
   const handleDeleteNode = useCallback(
     (nodeId: string) => {
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
-      );
+      setNodes((nds) => {
+        const updated = nds.filter((n) => n.id !== nodeId);
+        setEdges((eds) => {
+          const updatedEdges = eds.filter((e) => e.source !== nodeId && e.target !== nodeId);
+          pushHistory(updated, updatedEdges);
+          return updatedEdges;
+        });
+        return updated;
+      });
       setSelectedNodeId(null);
 
       // Delete metadata from server
@@ -236,8 +299,122 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
         body: JSON.stringify({ nodeId }),
       }).catch(() => {});
     },
-    [setNodes, setEdges, workflow.id]
+    [setNodes, setEdges, workflow.id, pushHistory]
   );
+
+  // Undo / Redo handlers
+  const handleUndo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    if (idx > 0) {
+      historyIndexRef.current = idx - 1;
+      const prev = historyRef.current[idx - 1];
+      setNodes(prev.nodes);
+      setEdges(prev.edges);
+    }
+  }, [setNodes, setEdges]);
+
+  const handleRedo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    if (idx < historyRef.current.length - 1) {
+      historyIndexRef.current = idx + 1;
+      const next = historyRef.current[idx + 1];
+      setNodes(next.nodes);
+      setEdges(next.edges);
+    }
+  }, [setNodes, setEdges]);
+
+  const canUndo = historyIndexRef.current > 0;
+  const canRedo = historyIndexRef.current < historyRef.current.length - 1;
+
+  // Auto-layout handler
+  const handleAutoLayout = useCallback(() => {
+    const { nodes: layouted, edges: layoutedEdges } = getLayoutedElements(nodes, edges);
+    setNodes(layouted);
+    setEdges(layoutedEdges);
+    pushHistory(layouted, layoutedEdges);
+    window.requestAnimationFrame(() => {
+      reactFlowInstance.fitView({ padding: 0.2 });
+    });
+  }, [nodes, edges, setNodes, setEdges, pushHistory, reactFlowInstance]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      // Don't capture if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        return;
+      }
+
+      // Delete / Backspace to remove selected nodes/edges
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const selectedNodes = nodes.filter((n) => n.selected);
+        const selectedEdges = edges.filter((edge) => edge.selected);
+        if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+          e.preventDefault();
+          const nodeIdsToRemove = new Set(selectedNodes.map((n) => n.id));
+          const edgeIdsToRemove = new Set(selectedEdges.map((edge) => edge.id));
+          setNodes((nds) => {
+            const updated = nds.filter((n) => !nodeIdsToRemove.has(n.id));
+            setEdges((eds) => {
+              const updatedEdges = eds.filter(
+                (edge) =>
+                  !edgeIdsToRemove.has(edge.id) &&
+                  !nodeIdsToRemove.has(edge.source) &&
+                  !nodeIdsToRemove.has(edge.target)
+              );
+              pushHistory(updated, updatedEdges);
+              return updatedEdges;
+            });
+            return updated;
+          });
+          setSelectedNodeId(null);
+          // Delete metadata for removed nodes
+          for (const nodeId of nodeIdsToRemove) {
+            fetch(`/api/workflows/${workflow.id}/metadata`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ nodeId }),
+            }).catch(() => {});
+          }
+        } else if (selectedNodeId) {
+          e.preventDefault();
+          handleDeleteNode(selectedNodeId);
+        }
+      }
+
+      // Ctrl+Z / Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+
+      // Ctrl+Shift+Z / Cmd+Shift+Z or Ctrl+Y for redo
+      if (
+        ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) ||
+        ((e.ctrlKey || e.metaKey) && e.key === "y")
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+
+      // Ctrl+A / Cmd+A to select all
+      if ((e.ctrlKey || e.metaKey) && e.key === "a") {
+        e.preventDefault();
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
+        setEdges((eds) => eds.map((edge) => ({ ...edge, selected: true })));
+      }
+
+      // Ctrl+Shift+L / Cmd+Shift+L for auto-layout
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "l" || e.key === "L")) {
+        e.preventDefault();
+        handleAutoLayout();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedNodeId, handleDeleteNode, handleUndo, handleRedo, handleAutoLayout, setNodes, setEdges, nodes, edges, pushHistory, workflow.id]);
 
   // Metadata update
   const handleMetadataUpdate = useCallback((updated: NodeMetadataEntry) => {
@@ -298,9 +475,125 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
     navigator.clipboard.writeText(url);
   }, [workflow.id]);
 
+  // Save as template
+  const handleSaveAsTemplate = useCallback(async () => {
+    try {
+      await fetch("/api/templates", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflowId: workflow.id,
+          name: workflowName,
+        }),
+      });
+    } catch {
+      // silently fail
+    }
+  }, [workflow.id, workflowName]);
+
+  // Quick-add: Add custom node at viewport center
+  const addCustomNodeAtCenter = useCallback(() => {
+    if (!inlineCustomName.trim()) return;
+    const { x, y, zoom } = reactFlowInstance.getViewport();
+    const centerX = (-x + window.innerWidth / 2) / zoom;
+    const centerY = (-y + window.innerHeight / 2) / zoom;
+
+    const newNode: Node = {
+      id: nanoid(),
+      type: "customNode",
+      position: { x: centerX - 90, y: centerY - 25 },
+      data: {
+        label: inlineCustomName.trim(),
+        color: inlineCustomColor,
+        subtitle: "Custom",
+      },
+    };
+
+    setNodes((nds) => {
+      const updated = [...nds, newNode];
+      pushHistory(updated, edges);
+      return updated;
+    });
+    setShowInlineCustom(false);
+    setInlineCustomName("");
+    setQuickAddOpen(false);
+  }, [inlineCustomName, inlineCustomColor, reactFlowInstance, setNodes, edges, pushHistory]);
+
+  // Quick-add: Add group node at viewport center
+  const addGroupAtCenter = useCallback(() => {
+    const { x, y, zoom } = reactFlowInstance.getViewport();
+    const centerX = (-x + window.innerWidth / 2) / zoom;
+    const centerY = (-y + window.innerHeight / 2) / zoom;
+
+    const newNode: Node = {
+      id: nanoid(),
+      type: "groupNode",
+      position: { x: centerX - 150, y: centerY - 100 },
+      data: { label: "New Group", color: "#6366f1" },
+      style: { width: 300, height: 200 },
+    };
+
+    setNodes((nds) => {
+      const updated = [...nds, newNode];
+      pushHistory(updated, edges);
+      return updated;
+    });
+    setQuickAddOpen(false);
+  }, [reactFlowInstance, setNodes, edges, pushHistory]);
+
+  // Edge label update
+  const handleEdgeLabelUpdate = useCallback(
+    (edgeId: string, label: string) => {
+      setEdges((eds) =>
+        eds.map((e) =>
+          e.id === edgeId ? { ...e, data: { ...e.data, label } } : e
+        )
+      );
+    },
+    [setEdges]
+  );
+
   // Derive selected node data
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const selectedMetadata = selectedNodeId ? metadataMap[selectedNodeId] || null : null;
+
+  // Compute connection counts per node and canvas labels for the info panel
+  const edgeCountMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const e of edges) {
+      if (!map[e.source]) map[e.source] = [];
+      if (!map[e.target]) map[e.target] = [];
+      if (!map[e.source].includes(e.target)) map[e.source].push(e.target);
+      if (!map[e.target].includes(e.source)) map[e.target].push(e.source);
+    }
+    return map;
+  }, [edges]);
+
+  const canvasNodeLabels = useMemo(
+    () => nodes.map((n) => (n.data as { label?: string })?.label || "").filter(Boolean),
+    [nodes]
+  );
+
+  const selectedConnectedNodeIds = useMemo(
+    () => (selectedNodeId ? edgeCountMap[selectedNodeId] || [] : []),
+    [selectedNodeId, edgeCountMap]
+  );
+
+  // Inject connectionCount into software nodes
+  const nodesWithConnectionCount = useMemo(() => {
+    return nodes.map((n) => {
+      if (n.type === "softwareNode") {
+        const count = edgeCountMap[n.id]?.length || 0;
+        const currentCount = (n.data as Record<string, unknown>).connectionCount;
+        if (currentCount !== count) {
+          return { ...n, data: { ...n.data, connectionCount: count } };
+        }
+      }
+      return n;
+    });
+  }, [nodes, edgeCountMap]);
+
+  const hasNodes = nodes.length > 0;
 
   return (
     <div className="h-screen w-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
@@ -363,6 +656,17 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
           )}
         </div>
 
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={handleSaveAsTemplate}
+          title="Save current workflow as a reusable template"
+        >
+          <BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />
+          Save as Template
+        </Button>
+
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleShare}>
           <Share2 className="w-3.5 h-3.5 mr-1.5" />
           Share
@@ -422,7 +726,7 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
 
         {/* React Flow canvas */}
         <ReactFlow
-          nodes={nodes}
+          nodes={nodesWithConnectionCount}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -432,11 +736,13 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           snapToGrid
           snapGrid={[16, 16]}
           defaultEdgeOptions={{
+            type: "editableEdge",
+            data: { label: "" },
             style: { stroke: "#94a3b8", strokeWidth: 2 },
-            type: "smoothstep",
           }}
           fitView
           className="bg-neutral-50 dark:bg-neutral-950"
@@ -463,6 +769,163 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
             maskColor="rgba(0, 0, 0, 0.08)"
             style={{ marginRight: selectedNodeId || aiPanelOpen ? 436 : 16 }}
           />
+
+          <CanvasToolbar
+            nodes={nodes}
+            edges={edges}
+            setNodes={setNodes}
+            setEdges={setEdges}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            workflowId={workflow.id}
+            workflowName={workflowName}
+            pushHistory={pushHistory}
+          />
+
+          {/* Empty state overlay */}
+          {!hasNodes && (
+            <Panel position="top-center" className="!top-1/3">
+              <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+                <div className="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <MousePointerClick className="w-8 h-8 text-neutral-400 dark:text-neutral-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                    Start building your workflow
+                  </h3>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                    Drag tools from the library or click <strong>+</strong> to start building your workflow
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      if (libraryCollapsed) setLibraryCollapsed(false);
+                    }}
+                  >
+                    <Layers className="w-3.5 h-3.5 mr-1.5" />
+                    Open Library
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setQuickAddOpen(true)}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Quick Add
+                  </Button>
+                </div>
+              </div>
+            </Panel>
+          )}
+
+          {/* Floating quick-add button - bottom center */}
+          <Panel position="bottom-center" className="!mb-6">
+            <div className="relative">
+              {/* Inline custom node form */}
+              {showInlineCustom && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-4 min-w-[260px] z-50">
+                  <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 mb-3">
+                    Add Custom Node
+                  </h4>
+                  <input
+                    value={inlineCustomName}
+                    onChange={(e) => setInlineCustomName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addCustomNodeAtCenter();
+                      if (e.key === "Escape") {
+                        setShowInlineCustom(false);
+                        setInlineCustomName("");
+                      }
+                    }}
+                    placeholder="Node name..."
+                    className="w-full h-8 rounded-md border border-neutral-300 dark:border-neutral-600 bg-transparent px-3 text-sm outline-none focus:ring-1 focus:ring-blue-500 dark:text-neutral-100 mb-3"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-1.5 mb-3">
+                    {COLOR_OPTIONS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setInlineCustomColor(c)}
+                        className={cn(
+                          "w-6 h-6 rounded-full transition-transform",
+                          inlineCustomColor === c && "ring-2 ring-offset-1 ring-neutral-400 scale-110"
+                        )}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 text-xs"
+                      disabled={!inlineCustomName.trim()}
+                      onClick={addCustomNodeAtCenter}
+                    >
+                      Add Node
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setShowInlineCustom(false);
+                        setInlineCustomName("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick-add menu */}
+              {quickAddOpen && !showInlineCustom && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl py-2 min-w-[200px] z-50">
+                  <button
+                    onClick={() => {
+                      setQuickAddOpen(false);
+                      if (libraryCollapsed) setLibraryCollapsed(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                  >
+                    <Layers className="w-4 h-4 text-blue-500" />
+                    Add Software Tool
+                  </button>
+                  <button
+                    onClick={() => setShowInlineCustom(true)}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                  >
+                    <Puzzle className="w-4 h-4 text-violet-500" />
+                    Add Custom Node
+                  </button>
+                  <button
+                    onClick={addGroupAtCenter}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                  >
+                    <Layers className="w-4 h-4 text-emerald-500" />
+                    Add Group
+                  </button>
+                </div>
+              )}
+
+              <Button
+                onClick={() => {
+                  setQuickAddOpen(!quickAddOpen);
+                  setShowInlineCustom(false);
+                }}
+                className="rounded-full w-12 h-12 shadow-lg"
+                size="icon"
+              >
+                <Plus className={cn("w-6 h-6 transition-transform", quickAddOpen && "rotate-45")} />
+              </Button>
+            </div>
+          </Panel>
         </ReactFlow>
 
         {/* Detail panel */}
@@ -477,7 +940,9 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
           metadata={selectedMetadata}
           onClose={() => setSelectedNodeId(null)}
           onDeleteNode={handleDeleteNode}
-          onMetadataUpdate={handleMetadataUpdate}
+          onMetadataUpdate={handleMetadataUpdate as never}
+          canvasNodeLabels={canvasNodeLabels}
+          connectedNodeIds={selectedConnectedNodeIds}
         />
 
         {/* AI panel */}
@@ -486,6 +951,16 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
           isOpen={aiPanelOpen}
           onClose={() => setAiPanelOpen(false)}
         />
+
+        {/* Workflow stats */}
+        <WorkflowStats
+          nodes={nodes}
+          edges={edges}
+          metadataMap={metadataMap}
+        />
+
+        {/* Keyboard shortcuts dialog */}
+        <ShortcutsDialog />
       </div>
     </div>
   );

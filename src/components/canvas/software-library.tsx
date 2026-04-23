@@ -29,18 +29,37 @@ const COLOR_OPTIONS = [
 
 export function SoftwareLibrary({ catalog, collapsed, onToggle }: SoftwareLibraryProps) {
   const [search, setSearch] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  // All categories expanded by default
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const entry of catalog) cats.add(entry.category);
+    return cats;
+  }, [catalog]);
+
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(allCategories);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customColor, setCustomColor] = useState("#8b5cf6");
 
+  // Count tools per category from the full catalog (not filtered)
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const entry of catalog) {
+      counts[entry.category] = (counts[entry.category] || 0) + 1;
+    }
+    return counts;
+  }, [catalog]);
+
+  // Search filters across all categories — name, category, and description
   const filtered = useMemo(() => {
     if (!search.trim()) return catalog;
     const q = search.toLowerCase();
     return catalog.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q)
+        c.category.toLowerCase().includes(q) ||
+        (c.description && c.description.toLowerCase().includes(q)) ||
+        c.slug.toLowerCase().includes(q)
     );
   }, [catalog, search]);
 
@@ -112,12 +131,17 @@ export function SoftwareLibrary({ catalog, collapsed, onToggle }: SoftwareLibrar
         <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
           Software Library
         </h3>
-        <button
-          onClick={onToggle}
-          className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-        >
-          <X className="w-4 h-4 text-neutral-500" />
-        </button>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-neutral-400 dark:text-neutral-500 mr-1">
+            {catalog.length} tools
+          </span>
+          <button
+            onClick={onToggle}
+            className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          >
+            <X className="w-4 h-4 text-neutral-500" />
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -127,10 +151,23 @@ export function SoftwareLibrary({ catalog, collapsed, onToggle }: SoftwareLibrar
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tools..."
+            placeholder="Search tools across all categories..."
             className="pl-8 h-8 text-xs"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            >
+              <X className="w-3 h-3 text-neutral-400" />
+            </button>
+          )}
         </div>
+        {search.trim() && (
+          <p className="text-xs text-neutral-400 mt-1 px-0.5">
+            {filtered.length} result{filtered.length !== 1 ? "s" : ""} found
+          </p>
+        )}
       </div>
 
       {/* Add Custom */}
@@ -200,6 +237,7 @@ export function SoftwareLibrary({ catalog, collapsed, onToggle }: SoftwareLibrar
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([category, entries]) => {
             const isExpanded = expandedCategories.has(category) || search.trim().length > 0;
+            const totalCount = categoryCounts[category] || entries.length;
             return (
               <div key={category}>
                 <button
@@ -212,8 +250,10 @@ export function SoftwareLibrary({ catalog, collapsed, onToggle }: SoftwareLibrar
                     <ChevronRight className="w-3.5 h-3.5" />
                   )}
                   {category}
-                  <span className="ml-auto text-neutral-400 dark:text-neutral-500 normal-case">
-                    {entries.length}
+                  <span className="ml-auto text-neutral-400 dark:text-neutral-500 normal-case tabular-nums">
+                    {search.trim() && entries.length !== totalCount
+                      ? `${entries.length}/${totalCount}`
+                      : totalCount}
                   </span>
                 </button>
                 {isExpanded && (
@@ -224,6 +264,7 @@ export function SoftwareLibrary({ catalog, collapsed, onToggle }: SoftwareLibrar
                         draggable
                         onDragStart={(e) => onDragStart(e, entry)}
                         className="flex items-center gap-2.5 px-4 py-1.5 mx-2 rounded-md cursor-grab active:cursor-grabbing hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                        title={entry.description || entry.name}
                       >
                         {entry.logoUrl ? (
                           <img

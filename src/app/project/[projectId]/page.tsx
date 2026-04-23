@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CreateWorkflowDialog } from "@/components/layout/create-workflow-dialog";
+import { DuplicateWorkflowButton } from "@/components/layout/duplicate-workflow-button";
 import { ProjectActions } from "./project-actions";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   ArrowLeft,
   Clock,
@@ -122,6 +124,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
             {isOwner && (
               <ProjectActions
                 projectId={project.id}
@@ -130,6 +134,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 archived={project.archived}
               />
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -211,9 +216,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       )}
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {formatDate(workflow.updatedAt)}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {formatDate(workflow.updatedAt)}
+                        </div>
+                        <DuplicateWorkflowButton workflowId={workflow.id} />
                       </div>
                     </CardContent>
                   </Card>

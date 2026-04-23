@@ -10,12 +10,14 @@ export interface SoftwareNodeData {
   category?: string;
   color?: string;
   subtitle?: string;
+  connectionCount?: number;
   [key: string]: unknown;
 }
 
 function SoftwareNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as SoftwareNodeData;
   const borderColor = nodeData.color || "#6366f1";
+  const connectionCount = nodeData.connectionCount ?? 0;
 
   return (
     <>
@@ -26,7 +28,7 @@ function SoftwareNodeComponent({ data, selected }: NodeProps) {
       />
       <div
         className={cn(
-          "min-w-[180px] bg-white dark:bg-neutral-800 rounded-lg shadow-md border border-neutral-200 dark:border-neutral-700 transition-shadow",
+          "relative min-w-[180px] bg-white dark:bg-neutral-800 rounded-lg shadow-md border border-neutral-200 dark:border-neutral-700 transition-shadow",
           selected && "ring-2 ring-blue-500 shadow-lg"
         )}
         style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
@@ -57,6 +59,15 @@ function SoftwareNodeComponent({ data, selected }: NodeProps) {
             )}
           </div>
         </div>
+        {connectionCount > 0 && (
+          <div
+            className="absolute -bottom-1.5 -right-1.5 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1 shadow-sm"
+            style={{ backgroundColor: borderColor }}
+            title={`${connectionCount} connection${connectionCount !== 1 ? "s" : ""}`}
+          >
+            {connectionCount}
+          </div>
+        )}
       </div>
       <Handle
         type="source"

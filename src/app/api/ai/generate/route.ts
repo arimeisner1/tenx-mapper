@@ -3,6 +3,12 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getDefaultUser } from "@/lib/default-user";
 import { prisma } from "@/lib/prisma";
 import { buildWorkflowContext, getTaskSystemPrompt } from "@/lib/ai";
+import { getDemoResponse, createDemoStream } from "@/lib/ai-demo";
+
+interface CanvasNode {
+  id: string;
+  data?: { label?: string };
+}
 
 const VALID_TASKS = [
   "implementation-plan",
@@ -35,23 +41,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Use provided API key or fetch from user settings
-  let resolvedApiKey = apiKey;
-  if (!resolvedApiKey) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { anthropicApiKey: true },
-    });
-    resolvedApiKey = dbUser?.anthropicApiKey;
-  }
-
-  if (!resolvedApiKey) {
-    return Response.json(
-      { error: "Anthropic API key is required. Please set it in your settings." },
-      { status: 400 }
-    );
-  }
-
   // Fetch workflow with metadata
   const workflow = await prisma.workflow.findFirst({
     where: {
@@ -70,6 +59,28 @@ export async function POST(request: NextRequest) {
 
   if (!workflow) {
     return Response.json({ error: "Workflow not found" }, { status: 404 });
+  }
+
+  // Use provided API key or fetch from user settings
+  let resolvedApiKey = apiKey;
+  if (!resolvedApiKey) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { anthropicApiKey: true },
+    });
+    resolvedApiKey = dbUser?.anthropicApiKey;
+  }
+
+  // If no API key, use demo mode
+  if (!resolvedApiKey) {
+    const canvasData = workflow.canvasData as { nodes?: CanvasNode[] };
+    const nodeNames = (canvasData?.nodes || [])
+      .map((n: CanvasNode) => n.data?.label || "Unknown")
+      .filter((n: string) => n !== "Unknown");
+    const demoText = getDemoResponse(task, workflow.name, nodeNames.length > 0 ? nodeNames : ["Tool 1", "Tool 2", "Tool 3"]);
+    return new Response(createDemoStream(demoText), {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   // Build context from workflow
