@@ -19,9 +19,12 @@ function GroupNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as GroupNodeData;
   const color = nodeData.color || "#6366f1";
 
-  const bgStyle: CSSProperties = {
-    backgroundColor: `${color}10`,
-    borderColor: `${color}40`,
+  const containerStyle: CSSProperties = {
+    backgroundColor: `${color}1a`,
+    borderColor: `${color}50`,
+    boxShadow: selected
+      ? `inset 0 2px 12px ${color}15, 0 0 0 2px ${color}40`
+      : `inset 0 2px 8px ${color}0a`,
   };
 
   return (
@@ -31,31 +34,75 @@ function GroupNodeComponent({ data, selected }: NodeProps) {
         minHeight={150}
         isVisible={selected}
         lineClassName="!border-blue-500"
-        handleClassName="!w-2.5 !h-2.5 !bg-blue-500 !border-2 !border-white !rounded-sm"
+        handleClassName="!w-3 !h-3 !bg-blue-500 !border-2 !border-white !rounded-sm"
       />
       <div
         className={cn(
-          "w-full h-full rounded-xl border-2 border-dashed",
-          selected && "ring-1 ring-blue-500"
+          "w-full h-full border-2 border-dashed transition-shadow",
+          selected && "ring-1 ring-blue-500/50"
         )}
-        style={bgStyle}
+        style={{
+          ...containerStyle,
+          borderRadius: 12,
+          transition: "all 0.2s ease",
+        }}
       >
+        {/* Title bar */}
         <div
-          className="px-3 py-1.5 text-xs font-semibold rounded-tl-[10px] rounded-br-lg inline-block"
-          style={{ backgroundColor: color, color: "white" }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white"
+          style={{
+            backgroundColor: color,
+            borderTopLeftRadius: 10,
+            borderBottomRightRadius: 10,
+            boxShadow: `0 2px 6px ${color}40`,
+          }}
         >
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="opacity-80"
+          >
+            <rect
+              x="1"
+              y="1"
+              width="14"
+              height="14"
+              rx="2"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+            />
+          </svg>
           {nodeData.label}
         </div>
       </div>
       <Handle
         type="target"
         position={Position.Top}
-        className="!w-3 !h-3 !bg-neutral-400 !border-2 !border-white dark:!border-neutral-800 !rounded-full !opacity-0"
+        className="!rounded-full !border-2"
+        style={{
+          width: 12,
+          height: 12,
+          background: color,
+          borderColor: "white",
+          opacity: 0,
+          transition: "all 0.2s ease",
+        }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-3 !h-3 !bg-neutral-400 !border-2 !border-white dark:!border-neutral-800 !rounded-full !opacity-0"
+        className="!rounded-full !border-2"
+        style={{
+          width: 12,
+          height: 12,
+          background: color,
+          borderColor: "white",
+          opacity: 0,
+          transition: "all 0.2s ease",
+        }}
       />
     </>
   );

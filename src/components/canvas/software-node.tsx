@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 
@@ -11,70 +11,155 @@ export interface SoftwareNodeData {
   color?: string;
   subtitle?: string;
   connectionCount?: number;
+  status?: "active" | "planned" | "deprecated";
   [key: string]: unknown;
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  active: "#22c55e",
+  planned: "#eab308",
+  deprecated: "#9ca3af",
+};
+
 function SoftwareNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as SoftwareNodeData;
-  const borderColor = nodeData.color || "#6366f1";
+  const categoryColor = nodeData.color || "#6366f1";
   const connectionCount = nodeData.connectionCount ?? 0;
+  const status = nodeData.status || "active";
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <>
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Target handle — left center */}
       <Handle
         type="target"
-        position={Position.Top}
-        className="!w-3 !h-3 !bg-neutral-400 !border-2 !border-white dark:!border-neutral-800 !rounded-full"
+        position={Position.Left}
+        className="!rounded-full !border-2"
+        style={{
+          width: 12,
+          height: 12,
+          left: -6,
+          background: categoryColor,
+          borderColor: "white",
+          opacity: hovered ? 1 : 0,
+          transition: "all 0.2s ease",
+          boxShadow: hovered ? `0 0 8px ${categoryColor}80` : "none",
+        }}
       />
+
+      {/* Main card */}
       <div
         className={cn(
-          "relative min-w-[180px] bg-white dark:bg-neutral-800 rounded-lg shadow-md border border-neutral-200 dark:border-neutral-700 transition-shadow",
-          selected && "ring-2 ring-blue-500 shadow-lg"
+          "relative overflow-hidden bg-white dark:bg-neutral-850 rounded-xl",
+          selected && "ring-2 ring-blue-500"
         )}
-        style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
+        style={{
+          width: 220,
+          transition: "all 0.2s ease",
+          transform: hovered
+            ? "perspective(1000px) rotateX(2deg) translateY(-2px) scale(1.01)"
+            : selected
+            ? "scale(1.02)"
+            : "none",
+          boxShadow: hovered
+            ? "0 4px 8px rgba(0,0,0,0.12), 0 12px 32px rgba(0,0,0,0.1), 0 24px 60px rgba(0,0,0,0.08)"
+            : "0 1px 3px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.05)",
+        }}
       >
-        <div className="flex items-center gap-3 px-3 py-2.5">
+        {/* Color strip — left edge */}
+        <div
+          className="absolute left-0 top-0 bottom-0 rounded-l-xl"
+          style={{
+            width: 6,
+            backgroundColor: categoryColor,
+          }}
+        />
+
+        {/* Content area */}
+        <div className="flex items-center gap-3 pl-4 pr-3 py-3">
+          {/* Logo / fallback */}
           {nodeData.logoUrl ? (
             <img
               src={nodeData.logoUrl}
               alt={nodeData.label}
-              className="w-8 h-8 rounded-md object-contain bg-neutral-50 dark:bg-neutral-700 p-0.5"
+              className="w-10 h-10 rounded-lg object-contain bg-neutral-50 dark:bg-neutral-700 p-1 shrink-0"
+              style={{
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
             />
           ) : (
             <div
-              className="w-8 h-8 rounded-md flex items-center justify-center text-white text-sm font-bold"
-              style={{ backgroundColor: borderColor }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-base font-bold shrink-0"
+              style={{
+                backgroundColor: categoryColor,
+                boxShadow: `0 2px 8px ${categoryColor}40`,
+              }}
             >
               {nodeData.label?.charAt(0)?.toUpperCase() || "S"}
             </div>
           )}
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
+
+          {/* Text */}
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate leading-tight">
               {nodeData.label}
             </span>
-            {nodeData.subtitle && (
-              <span className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                {nodeData.subtitle}
+            {(nodeData.subtitle || nodeData.category) && (
+              <span className="text-xs text-neutral-400 dark:text-neutral-500 truncate mt-0.5">
+                {nodeData.subtitle || nodeData.category}
               </span>
             )}
           </div>
         </div>
-        {connectionCount > 0 && (
-          <div
-            className="absolute -bottom-1.5 -right-1.5 min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1 shadow-sm"
-            style={{ backgroundColor: borderColor }}
-            title={`${connectionCount} connection${connectionCount !== 1 ? "s" : ""}`}
-          >
-            {connectionCount}
+
+        {/* Bottom row */}
+        <div className="flex items-center justify-between px-4 pb-2.5 pt-0">
+          {/* Connection count pill */}
+          {connectionCount > 0 && (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
+              style={{ backgroundColor: `${categoryColor}cc` }}
+            >
+              {connectionCount} {connectionCount === 1 ? "conn" : "conns"}
+            </span>
+          )}
+          {connectionCount === 0 && <span />}
+
+          {/* Status dot */}
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: STATUS_COLORS[status] }}
+              title={status}
+            />
+            <span className="text-[10px] text-neutral-400 capitalize">
+              {status}
+            </span>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Source handle — right center */}
       <Handle
         type="source"
-        position={Position.Bottom}
-        className="!w-3 !h-3 !bg-neutral-400 !border-2 !border-white dark:!border-neutral-800 !rounded-full"
+        position={Position.Right}
+        className="!rounded-full !border-2"
+        style={{
+          width: 12,
+          height: 12,
+          right: -6,
+          background: categoryColor,
+          borderColor: "white",
+          opacity: hovered ? 1 : 0,
+          transition: "all 0.2s ease",
+          boxShadow: hovered ? `0 0 8px ${categoryColor}80` : "none",
+        }}
       />
-    </>
+    </div>
   );
 }
 

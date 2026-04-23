@@ -211,6 +211,7 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
             ...connection,
             type: "editableEdge",
             data: { label: "" },
+            markerEnd: "url(#arrow)",
             style: { stroke: "#94a3b8", strokeWidth: 2 },
           },
           eds
@@ -741,12 +742,41 @@ function WorkflowCanvasInner({ workflow, catalog }: WorkflowCanvasProps) {
           snapGrid={[16, 16]}
           defaultEdgeOptions={{
             type: "editableEdge",
+            animated: false,
             data: { label: "" },
             style: { stroke: "#94a3b8", strokeWidth: 2 },
           }}
           fitView
           className="bg-neutral-50 dark:bg-neutral-950"
         >
+          {/* SVG defs for arrowhead markers */}
+          <svg style={{ position: "absolute", width: 0, height: 0 }}>
+            <defs>
+              <marker
+                id="arrow"
+                viewBox="0 0 10 10"
+                refX="10"
+                refY="5"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+              </marker>
+              <marker
+                id="arrow-selected"
+                viewBox="0 0 10 10"
+                refX="10"
+                refY="5"
+                markerWidth="8"
+                markerHeight="8"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
+              </marker>
+            </defs>
+          </svg>
+
           <Background
             variant={BackgroundVariant.Dots}
             gap={16}
