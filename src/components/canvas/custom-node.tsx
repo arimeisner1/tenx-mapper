@@ -27,15 +27,8 @@ function CustomNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        className="!rounded-full !border-2"
         style={{
-          width: 12,
-          height: 12,
-          left: -6,
           background: color,
-          borderColor: "white",
-          opacity: hovered ? 1 : 0,
-          transition: "all 0.2s ease",
           boxShadow: hovered ? `0 0 8px ${color}80` : "none",
         }}
       />
@@ -99,15 +92,8 @@ function CustomNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        className="!rounded-full !border-2"
         style={{
-          width: 12,
-          height: 12,
-          right: -6,
           background: color,
-          borderColor: "white",
-          opacity: hovered ? 1 : 0,
-          transition: "all 0.2s ease",
           boxShadow: hovered ? `0 0 8px ${color}80` : "none",
         }}
       />

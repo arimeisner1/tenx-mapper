@@ -38,15 +38,8 @@ function SoftwareNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        className="!rounded-full !border-2"
         style={{
-          width: 12,
-          height: 12,
-          left: -6,
           background: categoryColor,
-          borderColor: "white",
-          opacity: hovered ? 1 : 0,
-          transition: "all 0.2s ease",
           boxShadow: hovered ? `0 0 8px ${categoryColor}80` : "none",
         }}
       />
@@ -147,15 +140,8 @@ function SoftwareNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        className="!rounded-full !border-2"
         style={{
-          width: 12,
-          height: 12,
-          right: -6,
           background: categoryColor,
-          borderColor: "white",
-          opacity: hovered ? 1 : 0,
-          transition: "all 0.2s ease",
           boxShadow: hovered ? `0 0 8px ${categoryColor}80` : "none",
         }}
       />

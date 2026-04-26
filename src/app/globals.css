@@ -128,24 +128,28 @@ body {
 
 /* React Flow handle styles */
 .react-flow__handle {
-  width: 12px !important;
-  height: 12px !important;
+  width: 14px !important;
+  height: 14px !important;
   border-radius: 50% !important;
   border: 2px solid white !important;
-  opacity: 0;
+  background: #6366f1 !important;
+  opacity: 0.3;
   transition: all 0.2s ease;
+  pointer-events: all !important;
+  z-index: 10 !important;
 }
 
 .react-flow__node:hover .react-flow__handle {
   opacity: 1;
+  transform: scale(1.2);
 }
 
 .react-flow__handle-left {
-  left: -6px !important;
+  left: -7px !important;
 }
 
 .react-flow__handle-right {
-  right: -6px !important;
+  right: -7px !important;
 }
 
 .react-flow__handle.connecting {
