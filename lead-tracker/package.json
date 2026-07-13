@@ -1,0 +1,16 @@
+{
+  "name": "lead-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Super-light coordination tracker for lead-testing projects: onboarding, status pipeline, tenant messaging (Twilio), Cal.com booking links, invoice tracking.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

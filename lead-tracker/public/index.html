@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lead Tracker</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark">Pb</span>
+      <div>
+        <strong>Lead Tracker</strong>
+        <small>project &amp; tenant coordination</small>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav__btn is-active" data-view="dashboard">Dashboard</button>
+      <button class="nav__btn" data-view="settings">Settings</button>
+      <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◑</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view">
+      <div class="view__head">
+        <div>
+          <h1>Projects</h1>
+          <p class="muted">Every lead test, from onboarding to closed.</p>
+        </div>
+        <button class="btn btn--primary" id="newProjectBtn">+ New project</button>
+      </div>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="toolbar">
+        <div class="filters" id="filters"></div>
+      </div>
+
+      <div id="projectList" class="stack"></div>
+      <div id="emptyState" class="empty hidden">
+        <div class="empty__art">🧪</div>
+        <h3>No projects yet</h3>
+        <p class="muted">Onboard your first lead-testing project to get started.</p>
+        <button class="btn btn--primary" data-open-new>+ New project</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view hidden">
+      <div class="view__head"><div><h1>Settings</h1><p class="muted">Connect the tools that do the heavy lifting.</p></div></div>
+
+      <div class="cards2">
+        <div class="card">
+          <div class="card__head">
+            <h3>Cal.com <span class="chip" id="calChip">Not connected</span></h3>
+            <p class="muted">Tenants self-book. Paste your public booking URL; add an API key if you have one.</p>
+          </div>
+          <label class="field"><span>Booking URL</span>
+            <input id="calcomBookingUrl" placeholder="https://cal.com/your-team/lead-test" /></label>
+          <label class="field"><span>API key <em>(optional)</em></span>
+            <input id="calcomApiKey" type="password" placeholder="cal_live_…" /></label>
+          <button class="btn" data-save-settings>Save Cal.com</button>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>Twilio <span class="chip" id="twilioChip">Not connected</span></h3>
+            <p class="muted">Two-way SMS to tenants. Until connected, messages are stored but not sent.</p>
+          </div>
+          <label class="field"><span>Account SID</span>
+            <input id="twilioSid" placeholder="AC…" /></label>
+          <label class="field"><span>Auth token</span>
+            <input id="twilioToken" type="password" placeholder="••••••••" /></label>
+          <label class="field"><span>From number</span>
+            <input id="twilioFrom" placeholder="+1 555 010 0000" /></label>
+          <button class="btn" data-save-settings>Save Twilio</button>
+        </div>
+      </div>
+      <p class="muted note">Secrets are stored server-side and never sent back to the browser — fields show blank once saved; that's expected.</p>
+    </section>
+  </main>
+
+  <!-- NEW PROJECT MODAL -->
+  <div class="modal hidden" id="newProjectModal">
+    <div class="modal__card">
+      <div class="modal__head"><h2>Onboard a project</h2><button class="icon-btn" data-close>✕</button></div>
+      <form id="newProjectForm" class="modal__body">
+        <div class="section-label">Property</div>
+        <div class="grid2">
+          <label class="field"><span>Address *</span><input name="address" required placeholder="123 Maple St" /></label>
+          <label class="field"><span>Unit</span><input name="unit" placeholder="Apt 2B" /></label>
+        </div>
+        <div class="section-label">Landlord / property manager <em>— bill-to</em></div>
+        <div class="grid3">
+          <label class="field"><span>Name *</span><input name="landlordName" required /></label>
+          <label class="field"><span>Email</span><input name="landlordEmail" type="email" /></label>
+          <label class="field"><span>Phone</span><input name="landlordPhone" /></label>
+        </div>
+        <div class="section-label">Tenant / occupant <em>— schedule &amp; message</em></div>
+        <div class="grid3">
+          <label class="field"><span>Name</span><input name="tenantName" /></label>
+          <label class="field"><span>Email</span><input name="tenantEmail" type="email" /></label>
+          <label class="field"><span>Phone</span><input name="tenantPhone" placeholder="+1 555 …" /></label>
+        </div>
+        <div class="modal__foot">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" class="btn btn--primary">Create project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- PROJECT DETAIL DRAWER -->
+  <div class="drawer hidden" id="detailDrawer">
+    <div class="drawer__scrim" data-close></div>
+    <aside class="drawer__panel" id="detailPanel"><!-- filled by JS --></aside>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
